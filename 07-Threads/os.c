@@ -50,7 +50,55 @@ char get_char(void)
 	while (!(*(USART2_SR) & USART_FLAG_RXNE));
 	return *(USART2_DR) & 0xFF;
 }
+void fib(void *userdata)
+{
+	print_str("5\n");
+	
+}
 
+int strcmp(const char *str1, const char *str2)
+{
+	char c1, c2;
+	while(*str1){
+		c1 = *str1++;
+		c2 = *str2++;
+		if(c1!=c2) return 1;
+	}
+	return 0;
+	
+	
+}
+char *strtok(char *str, char *dot)
+{
+	static char *token;
+	if(str!=NULL){
+		token = str;
+		while((*token)!=*dot){
+			token++;
+		}
+		*token = '\0';
+	}else{
+		token++;
+		if(*token == '\0') return NULL;
+		str = token;
+		while(((*token)!=*dot) || ((*token)!='\0')){
+			if(*token == '\0') break;
+			token++;
+		}
+		*token = '\0';
+	}
+	return str;
+}
+
+void cmd(void *command) 
+{
+	char *cm = strtok((char *)command, " ");
+	if(!strcmp(cm, "fib")){
+		if(thread_create(fib, (void *) 5) == -1)
+			print_str("Thread fib creation failed\r\n");
+	}
+	
+}
 void shell(void *userdata){
 	char buf[30];
 	int i;
@@ -58,6 +106,13 @@ void shell(void *userdata){
 		print_str((char *) userdata);
 		for(i=0;i<30;i++){
 			buf[i] = get_char();
+			if(buf[i]==13){
+				print_char("\n");
+				buf[i]='\0';
+				if(thread_create(cmd((void *) buf)) == -1)
+					print_str("Thread cmd creation failed\r\n");
+				break;
+			}
 			print_char(&buf[i]);
 		}
 	}

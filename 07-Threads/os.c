@@ -10,6 +10,7 @@
 #define USART_FLAG_TXE	((uint16_t) 0x0080)
 #define USART_FLAG_RXNE ((uint16_t) 0x0020)
 
+char mutex = '0';
 
 void usart_init(void)
 {
@@ -54,7 +55,24 @@ char get_char(void)
 
 int fib(int number)
 {
-	return number;	
+	if(number==0) return 0;
+	int result;
+	asm volatile("push {r3, r4, r5, r6}");
+	asm volatile("mov r6, %[input]"::[input]"r"(number));
+	asm volatile("mov r3, #-1\n" 
+				 "mov r4, #1\n"
+	 			 "mov r5, #0\n"
+				 ".for:\n"
+				 "add r5, r4, r3\n"
+				 "mov r3, r4\n"
+				 "mov r4, r5\n"
+				 "subs r6, r6 ,#1\n"
+				 "bge .for");
+	asm volatile("mov %[output], r5"
+				 :[output]"=r"(result)::);
+	asm volatile("pop {r3, r4, r5, r6}");
+	
+	return result;
 }
 
 int strcmp(const char *str1, const char *str2)
@@ -94,7 +112,7 @@ int strlen(char *str)
 {
 	int i;
 	for(i=0; str[i]!='\0'; i++);
-	return i+1;
+	return i;
 }
 // reverse string
 void reverse(char *str)
@@ -136,11 +154,13 @@ void itoa(int num, char str[])
 }
 void cmd_fib(void *number)
 {
-	char *num = (char *)number;
-	int result = fib(atoi(num));
-	itoa(result, num);
-	
-	print_str(num);
+	while(1){
+		while(mutex=='0');
+		char *num = (char *)number;
+		int result = fib(atoi(num));
+		itoa(result, num);
+		mutex = '0';
+	}
 }
 void cmd(char *command) 
 {
@@ -149,6 +169,7 @@ void cmd(char *command)
 		cm = strtok(NULL, " ");
 		if(thread_create(cmd_fib, (void *) cm) == -1)
 			print_str("Thread cmd_fib creation failed\r\n");
+		mutex = '1';
 	}
 	
 }
@@ -156,6 +177,7 @@ void shell(void *userdata){
 	char buf[30];
 	int i;
 	while(1){
+		while(mutex=='1');
 		print_str((char *) userdata);
 		for(i=0;i<30;i++){
 			buf[i] = get_char();

@@ -9,8 +9,10 @@
  */
 #define USART_FLAG_TXE	((uint16_t) 0x0080)
 #define USART_FLAG_RXNE ((uint16_t) 0x0020)
+#define LOCK 1
+#define UNLOCK 0
 
-char mutex = '0';
+int mutex = UNLOCK;
 
 void usart_init(void)
 {
@@ -62,12 +64,12 @@ int fib(int number)
 	asm volatile("mov r3, #-1\n" 
 				 "mov r4, #1\n"
 	 			 "mov r5, #0\n"
-				 ".for:\n"
+				 ".forloop:\n"
 				 "add r5, r4, r3\n"
 				 "mov r3, r4\n"
 				 "mov r4, r5\n"
 				 "subs r6, r6 ,#1\n"
-				 "bge .for");
+				 "bge .forloop");
 	asm volatile("mov %[output], r5"
 				 :[output]"=r"(result)::);
 	asm volatile("pop {r3, r4, r5, r6}");
@@ -155,11 +157,11 @@ void itoa(int num, char str[])
 void cmd_fib(void *number)
 {
 	while(1){
-		while(mutex=='0');
+		while(mutex==UNLOCK); // when shell thread is locked, it can break while loop.
 		char *num = (char *)number;
 		int result = fib(atoi(num));
 		itoa(result, num);
-		mutex = '0';
+		mutex = UNLOCK;
 	}
 }
 void cmd(char *command) 
@@ -169,7 +171,7 @@ void cmd(char *command)
 		cm = strtok(NULL, " ");
 		if(thread_create(cmd_fib, (void *) cm) == -1)
 			print_str("Thread cmd_fib creation failed\r\n");
-		mutex = '1';
+		mutex = LOCK;
 	}
 	
 }
@@ -177,7 +179,7 @@ void shell(void *userdata){
 	char buf[30];
 	int i;
 	while(1){
-		while(mutex=='1');
+		while(mutex==LOCK);
 		print_str((char *) userdata);
 		for(i=0;i<30;i++){
 			buf[i] = get_char();

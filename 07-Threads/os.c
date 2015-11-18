@@ -10,6 +10,7 @@
 #define USART_FLAG_TXE	((uint16_t) 0x0080)
 #define USART_FLAG_RXNE ((uint16_t) 0x0020)
 
+
 void usart_init(void)
 {
 	*(RCC_APB2ENR) |= (uint32_t) (0x00000001 | 0x00000004);
@@ -50,10 +51,10 @@ char get_char(void)
 	while (!(*(USART2_SR) & USART_FLAG_RXNE));
 	return *(USART2_DR) & 0xFF;
 }
-void fib(void *userdata)
+
+int fib(int number)
 {
-	print_str("5\n");
-	
+	return number;	
 }
 
 int strcmp(const char *str1, const char *str2)
@@ -65,9 +66,8 @@ int strcmp(const char *str1, const char *str2)
 		if(c1!=c2) return 1;
 	}
 	return 0;
-	
-	
 }
+
 char *strtok(char *str, char *dot)
 {
 	static char *token;
@@ -89,13 +89,66 @@ char *strtok(char *str, char *dot)
 	}
 	return str;
 }
-
-void cmd(void *command) 
+// calculate the length of string
+int strlen(char *str)
+{
+	int i;
+	for(i=0; str[i]!='\0'; i++);
+	return i+1;
+}
+// reverse string
+void reverse(char *str)
+{
+	int i, j;
+	for(i=0, j=strlen(str)-1; i<j; i++, j--){
+		char x = str[i];
+		str[i] = str[j];
+		str[j] = x;
+	}
+}
+// string to integer
+int atoi(char *str)
+{
+	int number = 0, i;
+	for(i=0; str[i]!='\0'; i++){
+		number = number*10 + str[i] - '0';
+	}
+	return number;
+}
+// integer to string
+void itoa(int num, char str[])
+{
+	int check = 0; // check if number is negative or not
+	if(num<0){
+		num = -num;
+		check=1;
+	}
+	int i=0;
+	while(num!=0){
+		str[i++] = num%10 + '0';
+		num = num/10;
+	}
+	if(check) str[i++] = '-';
+	str[i] = '\0';
+	reverse(str);
+	print_str(str);
+	
+}
+void cmd_fib(void *number)
+{
+	char *num = (char *)number;
+	int result = fib(atoi(num));
+	itoa(result, num);
+	
+	print_str(num);
+}
+void cmd(char *command) 
 {
 	char *cm = strtok((char *)command, " ");
 	if(!strcmp(cm, "fib")){
-		if(thread_create(fib, (void *) 5) == -1)
-			print_str("Thread fib creation failed\r\n");
+		cm = strtok(NULL, " ");
+		if(thread_create(cmd_fib, (void *) cm) == -1)
+			print_str("Thread cmd_fib creation failed\r\n");
 	}
 	
 }
@@ -109,8 +162,7 @@ void shell(void *userdata){
 			if(buf[i]==13){
 				print_char("\n");
 				buf[i]='\0';
-				if(thread_create(cmd((void *) buf)) == -1)
-					print_str("Thread cmd creation failed\r\n");
+				cmd(buf);
 				break;
 			}
 			print_char(&buf[i]);

@@ -183,11 +183,18 @@ void shell(void *userdata){
 		print_str((char *) userdata);
 		for(i=0;i<30;i++){
 			buf[i] = get_char();
+			// press Enter
 			if(buf[i]==13){
 				print_char("\n");
 				buf[i]='\0';
 				cmd(buf);
 				break;
+			}
+			// backspace
+			if((buf[i]==8) || (buf[i]==127)){
+				print_str("\b \b");
+				i--;
+				continue;
 			}
 			print_char(&buf[i]);
 		}
